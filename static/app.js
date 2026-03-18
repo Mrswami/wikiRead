@@ -19,10 +19,82 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Pre-load voices for Android
   if ('speechSynthesis' in window) {
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    populateVoices();
+    window.speechSynthesis.onvoiceschanged = () => populateVoices();
   }
 });
+
+// ============================================================
+// SETTINGS & UI TOGGLES
+// ============================================================
+
+function toggleMenu(menuId) {
+  const modal = document.getElementById(menuId);
+  if (!modal) return;
+  if (modal.style.display === 'none') {
+    document.querySelectorAll('.menu-modal').forEach(m => m.style.display = 'none');
+    modal.style.display = 'flex';
+  } else {
+    modal.style.display = 'none';
+  }
+}
+
+let userSelectedVoice = null;
+
+function populateVoices() {
+  const select = document.getElementById('voiceSelect');
+  if (!select) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+  
+  const currentVal = select.value;
+  select.innerHTML = '';
+  
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    select.appendChild(opt);
+  });
+  
+  // Auto-select English local voice if nothing selected
+  if (!currentVal) {
+    const bestIdx = voices.findIndex(v => v.localService && v.lang.startsWith('en'));
+    select.selectedIndex = bestIdx >= 0 ? bestIdx : 0;
+    updateTTSConfig();
+  } else {
+    select.value = currentVal;
+  }
+}
+
+function updateTTSConfig() {
+  const select = document.getElementById('voiceSelect');
+  if (select && select.value) {
+    userSelectedVoice = window.speechSynthesis.getVoices()[select.value];
+  }
+  const rateInput = document.getElementById('rateSlider');
+  if (rateInput) document.getElementById('rateLabel').textContent = parseFloat(rateInput.value).toFixed(1);
+  const pitchInput = document.getElementById('pitchSlider');
+  if (pitchInput) document.getElementById('pitchLabel').textContent = parseFloat(pitchInput.value).toFixed(1);
+}
+
+function formatTextForSpeech(text) {
+  let pText = text;
+  
+  const expandBox = document.getElementById('expandNumbersCheck');
+  if (expandBox && expandBox.checked) {
+      // Basic expansion of common patterns: "#1" -> "number 1"
+      pText = pText.replace(/#(\d+)/g, "number $1");
+  }
+
+  const punctBox = document.getElementById('removePunctuationCheck');
+  if (punctBox && punctBox.checked) {
+      // Remove pauses caused by specific punctuation
+      pText = pText.replace(/[:;"\-\[\]\(\)]/g, " ");
+  }
+
+  return pText;
+}
 
 // ============================================================
 // TTS CORE (Web Speech API)
@@ -55,13 +127,18 @@ function speakText(text, containerEl, onDone) {
     });
   }
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utteranceText = formatTextForSpeech(text);
+  const utterance = new SpeechSynthesisUtterance(utteranceText);
   currentUtterance = utterance;
   
-  // Pick the best natural voice on Android
-  const voices = window.speechSynthesis.getVoices();
-  const bestVoice = voices.find(v => v.localService && v.lang.startsWith('en')) || voices[0];
-  if (bestVoice) utterance.voice = bestVoice;
+  // Apply Config
+  if (userSelectedVoice) {
+    utterance.voice = userSelectedVoice;
+  }
+  const rateInput = document.getElementById('rateSlider');
+  if (rateInput) utterance.rate = parseFloat(rateInput.value);
+  const pitchInput = document.getElementById('pitchSlider');
+  if (pitchInput) utterance.pitch = parseFloat(pitchInput.value);
 
   // WORD HIGHLIGHTING EVENT
   utterance.onboundary = (event) => {

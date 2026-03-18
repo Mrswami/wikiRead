@@ -12,14 +12,63 @@
 
   <!-- STICKY TOP BAR -->
   <div class="top-bar" id="topBar">
-    <a href="/" class="back-btn" title="Home">←</a>
+    <button class="icon-btn" onclick="window.location.href='/'" title="Home">←</button>
     <div class="top-bar-info">
       <span class="top-bar-title">{{ article.title }}</span>
       <span class="top-bar-section" id="currentSectionLabel">Introduction</span>
     </div>
-    <button class="global-play-btn" id="globalPlayBtn" onclick="toggleGlobalPlay()" title="Play / Pause">
-      ▶
-    </button>
+    <button class="icon-btn" onclick="toggleMenu('tocModal')" title="Table of Contents">☰</button>
+    <button class="icon-btn" onclick="toggleMenu('settingsModal')" title="TTS Settings">⚙️</button>
+    <button class="global-play-btn" id="globalPlayBtn" onclick="toggleGlobalPlay()" title="Play / Pause">▶</button>
+  </div>
+
+  <!-- TOC MODAL (Hamburger Menu) -->
+  <div class="menu-modal" id="tocModal" style="display:none;">
+    <div class="menu-header">
+      <span class="menu-title">Table of Contents</span>
+      <button class="close-btn" onclick="toggleMenu('tocModal')">✕</button>
+    </div>
+    <ol class="toc-list">
+      {% for section in article.sections %}
+      <li>
+        <a href="#section-{{ loop.index0 }}" class="toc-link" onclick="scrollToSection({{ loop.index0 }}); toggleMenu('tocModal')">
+          {{ section.title }}
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="menu-modal" id="settingsModal" style="display:none;">
+    <div class="menu-header">
+      <span class="menu-title">Audio Settings</span>
+      <button class="close-btn" onclick="toggleMenu('settingsModal')">✕</button>
+    </div>
+    <div class="settings-row">
+      <label for="voiceSelect">Voice</label>
+      <select id="voiceSelect" onchange="updateTTSConfig()"></select>
+    </div>
+    <div class="settings-row">
+      <label for="rateSlider">Speed (<span id="rateLabel">1.0</span>x)</label>
+      <input type="range" id="rateSlider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateTTSConfig()">
+    </div>
+    <div class="settings-row">
+      <label for="pitchSlider">Pitch (<span id="pitchLabel">1.0</span>)</label>
+      <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateTTSConfig()">
+    </div>
+    <div class="settings-row checkbox-row">
+      <label>
+        <input type="checkbox" id="expandNumbersCheck" onchange="updateTTSConfig()" checked>
+        Expand # (e.g. #1 → number one)
+      </label>
+    </div>
+    <div class="settings-row checkbox-row">
+      <label>
+        <input type="checkbox" id="removePunctuationCheck" onchange="updateTTSConfig()">
+        Ignore punctuation (: ; - "")
+      </label>
+    </div>
   </div>
 
   <div class="reader-container">
@@ -42,25 +91,11 @@
       </div>
       <div class="concept-body" id="conceptBody">
         {% for para in article.summary %}
-        <p>{{ para }}</p>
+        <p class="article-para summary-para" onclick="speakParagraph(this)">{{ para }}</p>
         {% endfor %}
       </div>
     </div>
     {% endif %}
-
-    <!-- TABLE OF CONTENTS -->
-    <nav class="toc" id="toc">
-      <div class="toc-header">Contents</div>
-      <ol class="toc-list">
-        {% for section in article.sections %}
-        <li>
-          <a href="#section-{{ loop.index0 }}" class="toc-link" onclick="scrollToSection({{ loop.index0 }})">
-            {{ section.title }}
-          </a>
-        </li>
-        {% endfor %}
-      </ol>
-    </nav>
 
     <!-- ARTICLE SECTIONS -->
     <div class="article-body">
