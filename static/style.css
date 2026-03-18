@@ -455,6 +455,15 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 0 0 1px var(--accent-glow);
 }
 
+.word-highlight {
+  background-color: var(--accent);
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 2px;
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: all 0.1s ease;
+}
+
 /* Mini Player */
 .mini-player {
   position: fixed;

@@ -1,6 +1,6 @@
 // ============================================================
 // wikiRead — app.js
-// TTS state machine + UI controller
+// Speech Synthesis Engine + UI Controller
 // ============================================================
 
 let isSpeaking = false;
@@ -8,84 +8,152 @@ let globalPlayMode = false;
 let allParagraphs = [];
 let currentParaIndex = -1;
 let currentSpeakingEl = null;
+let currentUtterance = null;
+let isSummaryPlaying = false;
 
 // Gather all paragraphs in document order on load
 document.addEventListener('DOMContentLoaded', () => {
   allParagraphs = Array.from(document.querySelectorAll('.article-para'));
   setupScrollSpy();
+  setupMediaSession();
+  
+  // Pre-load voices for Android
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
 });
 
 // ============================================================
-// SPEAK CORE
+// TTS CORE (Web Speech API)
 // ============================================================
 
-async function speakText(text, onDone) {
-  isSpeaking = true;
-  showMiniPlayer(text);
-
-  try {
-    const res = await fetch('/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    const data = await res.json();
-
-    if (data.status === 'desktop') {
-      // Desktop testing mode: simulate a delay based on word count
-      console.log('[Desktop TTS]:', text.substring(0, 80) + '...');
-      const ms = Math.max(1500, (text.split(' ').length / 3) * 1000);
-      await new Promise(r => setTimeout(r, ms));
-    } else {
-      // Termux: termux-tts-speak is called; estimate duration
-      const ms = Math.max(1500, (text.split(' ').length / 3) * 1000);
-      await new Promise(r => setTimeout(r, ms));
-    }
-  } catch (e) {
-    console.error('Speak error:', e);
-  }
-
-  if (onDone) onDone();
-}
-
-async function stopSpeech() {
-  isSpeaking = false;
-  globalPlayMode = false;
-  currentParaIndex = -1;
-
-  if (currentSpeakingEl) {
-    currentSpeakingEl.classList.remove('speaking');
-    currentSpeakingEl = null;
-  }
-
-  document.getElementById('globalPlayBtn').textContent = '▶';
-  document.getElementById('globalPlayBtn').classList.remove('playing');
-  hideMiniPlayer();
-
-  // Remove all playing states
-  document.querySelectorAll('.section-play-btn.playing').forEach(b => b.classList.remove('playing'));
-  document.querySelectorAll('.article-para.speaking').forEach(p => p.classList.remove('speaking'));
-
-  try {
-    await fetch('/stop', { method: 'POST' });
-  } catch (e) {}
-}
-
-// ============================================================
-// TAP-TO-LISTEN (single paragraph)
-// ============================================================
-
-async function speakParagraph(el) {
-  if (!el) return;
-
-  // If tapping the currently speaking para, stop
-  if (currentSpeakingEl === el && isSpeaking) {
-    await stopSpeech();
+function speakText(text, containerEl, onDone) {
+  if (!('speechSynthesis' in window)) {
+    console.error("Speech Synthesis not supported");
+    if (onDone) onDone();
     return;
   }
 
-  // Clear previous highlight
-  if (currentSpeakingEl) currentSpeakingEl.classList.remove('speaking');
+  isSpeaking = true;
+  showMiniPlayer(text);
+  window.speechSynthesis.cancel(); // Instantly stop anything else
+
+  // PREPARE WORD HIGHLIGHTING
+  // If a container is provided (like a paragraph), wrap each word in a <span>
+  if (containerEl) {
+    const tokens = text.match(/\S+|\s+/g) || [];
+    containerEl.innerHTML = '';
+    tokens.forEach((token) => {
+      if (token.trim() === '') {
+        containerEl.appendChild(document.createTextNode(token));
+      } else {
+        const span = document.createElement('span');
+        span.textContent = token;
+        containerEl.appendChild(span);
+      }
+    });
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  currentUtterance = utterance;
+  
+  // Pick the best natural voice on Android
+  const voices = window.speechSynthesis.getVoices();
+  const bestVoice = voices.find(v => v.localService && v.lang.startsWith('en')) || voices[0];
+  if (bestVoice) utterance.voice = bestVoice;
+
+  // WORD HIGHLIGHTING EVENT
+  utterance.onboundary = (event) => {
+    if (event.name === 'word' && containerEl) {
+      let passedChars = 0;
+      let highlighted = false;
+      for (const node of containerEl.childNodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          passedChars += node.textContent.length;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          node.classList.remove('word-highlight');
+          const wordLen = node.textContent.length;
+          // Synchronize spoken word with the span based on character index
+          if (!highlighted && event.charIndex >= passedChars && event.charIndex < passedChars + wordLen) {
+            node.classList.add('word-highlight');
+            highlighted = true;
+          }
+          passedChars += wordLen;
+        }
+      }
+    }
+  };
+
+  utterance.onend = () => {
+    cleanupHighlighting(containerEl, text);
+    if (onDone) onDone();
+  };
+
+  utterance.onerror = (e) => {
+    // Only fire done if it wasn't a manual cancellation
+    if (e.error !== 'interrupted' && e.error !== 'canceled') {
+       cleanupHighlighting(containerEl, text);
+       if (onDone) onDone();
+    }
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function cleanupHighlighting(containerEl, originalText) {
+  if (containerEl && document.body.contains(containerEl)) {
+    // Strip the spans and return the paragraph to pure text
+    containerEl.textContent = originalText;
+  }
+}
+
+function stopSpeech() {
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  
+  isSpeaking = false;
+  globalPlayMode = false;
+  isSummaryPlaying = false;
+  
+  if (currentSpeakingEl) {
+    currentSpeakingEl.classList.remove('speaking');
+    cleanupHighlighting(currentSpeakingEl, currentSpeakingEl.textContent);
+    currentSpeakingEl = null;
+  }
+  
+  const gBtn = document.getElementById('globalPlayBtn');
+  if (gBtn) {
+    gBtn.textContent = '▶';
+    gBtn.classList.remove('playing');
+  }
+
+  const sBtn = document.getElementById('conceptPlayBtn');
+  if (sBtn) {
+    sBtn.textContent = '▶ Listen to Summary';
+    sBtn.classList.remove('playing');
+  }
+
+  document.querySelectorAll('.section-play-btn.playing').forEach(b => b.classList.remove('playing'));
+  document.querySelectorAll('.article-para.speaking').forEach(p => p.classList.remove('speaking'));
+  
+  hideMiniPlayer();
+}
+
+// ============================================================
+// TAP-TO-LISTEN
+// ============================================================
+
+function speakParagraph(el) {
+  if (!el) return;
+
+  if (currentSpeakingEl === el && isSpeaking) {
+    stopSpeech();
+    return;
+  }
+
+  stopSpeech();
 
   currentSpeakingEl = el;
   el.classList.add('speaking');
@@ -93,99 +161,27 @@ async function speakParagraph(el) {
   updateSectionLabel(el);
 
   const text = el.textContent.trim();
-  globalPlayMode = false;
+  currentParaIndex = allParagraphs.indexOf(el);
 
-  await stopSpeech();
-  currentSpeakingEl = el;
-  el.classList.add('speaking');
-  isSpeaking = true;
-  showMiniPlayer(text);
-
-  await fetch('/speak', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
-  }).catch(() => {});
-
-  // Estimate reading time then clean up
-  const ms = Math.max(1500, (text.split(' ').length / 3) * 1000);
-  await new Promise(r => setTimeout(r, ms));
-
-  if (currentSpeakingEl === el) {
-    el.classList.remove('speaking');
-    currentSpeakingEl = null;
-    isSpeaking = false;
-    hideMiniPlayer();
-  }
-}
-
-// ============================================================
-// SECTION PLAY
-// ============================================================
-
-async function playSection(sectionIndex) {
-  await stopSpeech();
-
-  const sectionEl = document.getElementById(`section-${sectionIndex}`);
-  if (!sectionEl) return;
-
-  const btn = sectionEl.querySelector('.section-play-btn');
-  const paragraphs = Array.from(sectionEl.querySelectorAll('.article-para'));
-
-  if (!paragraphs.length) return;
-
-  btn.classList.add('playing');
-  globalPlayMode = true;
-
-  for (const para of paragraphs) {
-    if (!globalPlayMode) break;
-    // Find index in allParagraphs for global tracking
-    currentParaIndex = allParagraphs.indexOf(para);
-    if (currentSpeakingEl) currentSpeakingEl.classList.remove('speaking');
-    currentSpeakingEl = para;
-    para.classList.add('speaking');
-    para.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    updateSectionLabel(para);
-
-    const text = para.textContent.trim();
-    showMiniPlayer(text);
-    isSpeaking = true;
-
-    await fetch('/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    }).catch(() => {});
-
-    const ms = Math.max(1500, (text.split(' ').length / 3) * 1000);
-    await new Promise(r => setTimeout(r, ms));
-
-    if (currentSpeakingEl === para) para.classList.remove('speaking');
-  }
-
-  btn.classList.remove('playing');
-  if (globalPlayMode) {
-    // Move to next section
-    const nextSection = document.getElementById(`section-${sectionIndex + 1}`);
-    if (nextSection) {
-      playSection(sectionIndex + 1);
-    } else {
-      stopSpeech();
+  speakText(text, el, () => {
+    if (currentSpeakingEl === el) {
+      el.classList.remove('speaking');
+      currentSpeakingEl = null;
+      isSpeaking = false;
+      hideMiniPlayer();
     }
-  }
+  });
 }
 
 // ============================================================
-// GLOBAL PLAY (reads full article from start)
+// CONTINUOUS GLOBAL PLAY
 // ============================================================
 
-async function toggleGlobalPlay() {
+function toggleGlobalPlay() {
   const btn = document.getElementById('globalPlayBtn');
 
   if (globalPlayMode || isSpeaking) {
-    await stopSpeech();
-    btn.textContent = '▶';
-    btn.classList.remove('playing');
+    stopSpeech();
     return;
   }
 
@@ -193,77 +189,117 @@ async function toggleGlobalPlay() {
   btn.classList.add('playing');
   globalPlayMode = true;
 
-  for (let i = 0; i < allParagraphs.length; i++) {
-    if (!globalPlayMode) break;
-    const para = allParagraphs[i];
-    currentParaIndex = i;
-    if (currentSpeakingEl) currentSpeakingEl.classList.remove('speaking');
-    currentSpeakingEl = para;
-    para.classList.add('speaking');
-    para.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    updateSectionLabel(para);
-
-    const text = para.textContent.trim();
-    showMiniPlayer(text);
-    isSpeaking = true;
-
-    await fetch('/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    }).catch(() => {});
-
-    const ms = Math.max(1500, (text.split(' ').length / 3) * 1000);
-    await new Promise(r => setTimeout(r, ms));
-    if (currentSpeakingEl === para) para.classList.remove('speaking');
-  }
-
-  if (globalPlayMode) stopSpeech();
+  // Start from the current paragraph, or the top if none selected
+  let startIndex = currentParaIndex >= 0 ? currentParaIndex : 0;
+  playSequence(allParagraphs, startIndex);
 }
 
-// ============================================================
-// SUMMARY (Concept Capture)
-// ============================================================
+function playSection(sectionIndex) {
+  const sectionEl = document.getElementById(`section-${sectionIndex}`);
+  if (!sectionEl) return;
+  const paragraphs = Array.from(sectionEl.querySelectorAll('.article-para'));
+  if (!paragraphs.length) return;
 
-async function playSummary() {
-  const btn = document.getElementById('conceptPlayBtn');
-  if (!btn) return;
+  stopSpeech();
+  
+  const btn = sectionEl.querySelector('.section-play-btn');
+  btn.classList.add('playing');
+  globalPlayMode = true;
 
-  if (isSpeaking && btn.classList.contains('playing')) {
-    await stopSpeech();
-    btn.textContent = '▶ Listen to Summary';
+  playSequence(paragraphs, 0, () => {
     btn.classList.remove('playing');
+    // Once section is done, optionally jump to next section here if you prefer
+    stopSpeech();
+  });
+}
+
+function playSequence(paras, index, onComplete) {
+  if (!globalPlayMode || index >= paras.length) {
+    if (onComplete) onComplete();
+    else stopSpeech();
     return;
   }
 
-  await stopSpeech();
+  const para = paras[index];
+  currentParaIndex = allParagraphs.indexOf(para);
+  
+  if (currentSpeakingEl) {
+      currentSpeakingEl.classList.remove('speaking');
+      cleanupHighlighting(currentSpeakingEl, currentSpeakingEl.textContent);
+  }
+  
+  currentSpeakingEl = para;
+  para.classList.add('speaking');
+  para.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  updateSectionLabel(para);
+
+  const text = para.textContent.trim();
+  
+  speakText(text, para, () => {
+    if (globalPlayMode && currentSpeakingEl === para) {
+      para.classList.remove('speaking');
+      playSequence(paras, index + 1, onComplete);
+    }
+  });
+}
+
+// ============================================================
+// CONCEPT CAPTURE (Summary)
+// ============================================================
+
+function playSummary() {
+  const btn = document.getElementById('conceptPlayBtn');
+  if (!btn) return;
+
+  if (isSpeaking && isSummaryPlaying) {
+    stopSpeech();
+    return;
+  }
+
+  stopSpeech();
   const paras = Array.from(document.querySelectorAll('#conceptBody p'));
   const fullText = paras.map(p => p.textContent.trim()).join(' ');
 
   btn.textContent = '⏸ Stop';
   btn.classList.add('playing');
-  globalPlayMode = false;
-  isSpeaking = true;
-  showMiniPlayer(fullText);
-
-  try {
-    await fetch('/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: fullText })
-    });
-    const ms = Math.max(2000, (fullText.split(' ').length / 3) * 1000);
-    await new Promise(r => setTimeout(r, ms));
-  } catch (e) {}
-
-  btn.textContent = '▶ Listen to Summary';
-  btn.classList.remove('playing');
-  isSpeaking = false;
-  hideMiniPlayer();
+  isSummaryPlaying = true;
+  
+  speakText(fullText, null, () => {
+    btn.textContent = '▶ Listen to Summary';
+    btn.classList.remove('playing');
+    isSummaryPlaying = false;
+    hideMiniPlayer();
+  });
 }
 
 // ============================================================
-// UI UTILITIES
+// OS MEDIA PLAYER INTEGRATION (Lock Screen Controls)
+// ============================================================
+
+function setupMediaSession() {
+  if ('mediaSession' in navigator) {
+    const thumbEl = document.querySelector('.article-thumb');
+    const titleEl = document.querySelector('.article-title');
+    
+    // Register the article to the OS Media Player
+    try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: titleEl ? titleEl.textContent : 'wikiRead',
+          artist: 'Wikipedia Audio Version',
+          album: 'wikiRead Open Learning',
+          artwork: thumbEl ? [{ src: thumbEl.src, sizes: '512x512', type: 'image/jpeg' }] : []
+        });
+
+        // Hook up the physical/lock-screen buttons
+        navigator.mediaSession.setActionHandler('play', () => toggleGlobalPlay());
+        navigator.mediaSession.setActionHandler('pause', () => stopSpeech());
+        navigator.mediaSession.setActionHandler('stop', () => stopSpeech());
+    } catch (e) { console.error("MediaSession error:", e); }
+  }
+}
+
+// ============================================================
+// UI COMPONENTS
 // ============================================================
 
 function showMiniPlayer(text) {
@@ -285,10 +321,8 @@ function updateSectionLabel(paraEl) {
   const label = document.getElementById('currentSectionLabel');
   if (heading && label) label.textContent = heading.textContent;
 
-  // Update TOC active link
   document.querySelectorAll('.toc-link').forEach(l => l.classList.remove('active'));
-  const sectionId = section.id;
-  const tocLink = document.querySelector(`.toc-link[href="#${sectionId}"]`);
+  const tocLink = document.querySelector(`.toc-link[href="#${section.id}"]`);
   if (tocLink) tocLink.classList.add('active');
 }
 
@@ -297,7 +331,6 @@ function scrollToSection(index) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Scroll spy: update top bar section label as user scrolls
 function setupScrollSpy() {
   const sections = document.querySelectorAll('.article-section');
   if (!sections.length) return;
