@@ -333,7 +333,7 @@ function playSequence(paras, index, onComplete) {
 }
 
 // ============================================================
-// CONCEPT CAPTURE (Summary)
+// CONCEPT CAPTURE (Summary & AI)
 // ============================================================
 
 function playSummary() {
@@ -358,6 +358,59 @@ function playSummary() {
     btn.classList.remove('playing');
     isSummaryPlaying = false;
     hideMiniPlayer();
+  });
+}
+
+function requestAISummary(btn) {
+  // Hide the TOC modal if it's open
+  toggleMenu('tocModal');
+  
+  const conceptBody = document.getElementById('conceptBody');
+  if (!conceptBody) return;
+
+  // Visual feedback
+  const oldContent = conceptBody.innerHTML;
+  conceptBody.innerHTML = '<p class="summary-para" style="color: var(--gold); text-align: center; font-weight: 600;">✨ Generating AI Summary...</p>';
+  
+  // Scrape all article paragraphs as context
+  const fullArticleText = Array.from(document.querySelectorAll('.article-para:not(.summary-para)'))
+                               .map(p => p.textContent.trim())
+                               .join(' ');
+
+  fetch('/api/summarize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: fullArticleText })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'ok' && data.summary) {
+      // Build the new UI inject
+      conceptBody.innerHTML = '';
+      data.summary.forEach(para => {
+        const pTag = document.createElement('p');
+        pTag.className = 'article-para summary-para';
+        pTag.style.borderLeftColor = 'var(--gold)'; // Special styling for AI output
+        pTag.textContent = para;
+        pTag.onclick = () => speakParagraph(pTag);
+        conceptBody.appendChild(pTag);
+      });
+      
+      // Update the header label so they know it's AI
+      const label = document.querySelector('.concept-label');
+      if (label) label.innerHTML = '✨ AI Generated Summary';
+      
+      // Scroll to the top to see the result
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      conceptBody.innerHTML = oldContent;
+      alert("AI Error: " + (data.message || "Unknown error"));
+    }
+  })
+  .catch(err => {
+    conceptBody.innerHTML = oldContent;
+    console.error(err);
+    alert("Network error contacting AI");
   });
 }
 

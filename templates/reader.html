@@ -38,7 +38,7 @@
       {% endfor %}
     </ol>
     <div style="margin-top: calc(var(--space) * 2); border-top: 1px solid var(--border); padding-top: calc(var(--space) * 2);">
-      <button style="width: 100%; font-family: var(--font-ui); font-size: 0.95rem; font-weight: 700; background: var(--accent); color: #fff; padding: calc(var(--space) * 1.5); border-radius: var(--radius-sm); border: none; cursor: pointer; transition: var(--transition);" onmouseover="this.style.background='#5090c0'" onmouseout="this.style.background='var(--accent)'" onclick="alert('AI Summarization coming soon!')">
+      <button style="width: 100%; font-family: var(--font-ui); font-size: 0.95rem; font-weight: 700; background: var(--accent); color: #fff; padding: calc(var(--space) * 1.5); border-radius: var(--radius-sm); border: none; cursor: pointer; transition: var(--transition);" onmouseover="this.style.background='#5090c0'" onmouseout="this.style.background='var(--accent)'" onclick="requestAISummary(this)">
         ✨ Summarize with AI
       </button>
     </div>
