@@ -581,94 +581,9 @@ function setupScrollSpy() {
   sections.forEach(s => observer.observe(s));
 }
 
-// ============================================================
-// THUMBWHEEL - PRECISION SCROLL
-// ============================================================
-
-let isThumbGrabbing = false;
-let thumbStartY = 0;
-let thumbStartScroll = 0;
-let thumbHideTimer = null;
-let thumbRafId = null;
-
-function setupThumbWheel() {
-  const wheel = document.getElementById('thumbWheel');
-  const label = document.getElementById('thumbLabel');
-  if (!wheel) return;
-
-  // Show wheel on any scroll, then fade after 2s
-  window.addEventListener('scroll', () => {
-    if (isThumbGrabbing) return;
-    showThumbWheel();
-    resetThumbHideTimer();
-  });
-
-  wheel.addEventListener('touchstart', (e) => {
-    isThumbGrabbing = true;
-    thumbStartY = e.touches[0].clientY;
-    thumbStartScroll = window.scrollY;
-    
-    wheel.classList.add('active');
-    document.body.classList.add('thumb-wheel-active');
-    showThumbWheel();
-    
-    // Stop native scroll/zoom behaviors
-    if (e.cancelable) e.preventDefault();
-  }, { passive: false });
-
-  window.addEventListener('touchmove', (e) => {
-    if (!isThumbGrabbing) return;
-    
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - thumbStartY;
-    
-    // Sensitivity: 1px of thumb move = 12px of scroll (slightly higher for speed)
-    const sensitivity = 12;
-    const targetScroll = thumbStartScroll + (deltaY * sensitivity);
-    
-    // Use rAF for zero-latency screen-synced updates
-    if (thumbRafId) cancelAnimationFrame(thumbRafId);
-    thumbRafId = requestAnimationFrame(() => {
-      window.scrollTo({
-        top: targetScroll,
-        behavior: 'auto' // 'auto' is essential for 1:1 live feel
-      });
-      
-      // Update Percentage Label Live
-      const winHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const pct = Math.min(100, Math.max(0, (window.scrollY / winHeight) * 100));
-      label.textContent = Math.round(pct) + "%";
-    });
-    
-    if (e.cancelable) e.preventDefault();
-  }, { passive: false });
-
-  window.addEventListener('touchend', () => {
-    if (!isThumbGrabbing) return;
-    isThumbGrabbing = false;
-    wheel.classList.remove('active');
-    document.body.classList.remove('thumb-wheel-active');
-    if (thumbRafId) cancelAnimationFrame(thumbRafId);
-    resetThumbHideTimer();
-  });
-}
-
-function showThumbWheel() {
-  const wheel = document.getElementById('thumbWheel');
-  if (wheel) wheel.classList.remove('hidden');
-}
-
-function resetThumbHideTimer() {
-  if (thumbHideTimer) clearTimeout(thumbHideTimer);
-  thumbHideTimer = setTimeout(() => {
-    if (!isThumbGrabbing) {
-      const wheel = document.getElementById('thumbWheel');
-      if (wheel) wheel.classList.add('hidden');
-    }
-  }, 2500);
-}
-
-// Ensure ThumbWheel starts on load
+// Ensure necessary listeners start on load
 document.addEventListener('DOMContentLoaded', () => {
-  setupThumbWheel();
+  setupScrollSpy();
+  setupMediaSession();
 });
+
