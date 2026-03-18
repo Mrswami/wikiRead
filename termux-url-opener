@@ -2,6 +2,9 @@
 # termux-url-opener
 # Triggered when a URL is shared to Termux from another app.
 
+PORT=5000
+APP_DIR="$HOME/wikiRead"
+
 # 1. Extract URL (Wikipedia app uses "Title - URL" format)
 INPUT="$*"
 # Improved regex to find any wikipedia link in the shared text
