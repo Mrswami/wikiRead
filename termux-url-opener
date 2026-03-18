@@ -2,12 +2,23 @@
 # termux-url-opener
 # Triggered when a URL is shared to Termux from another app.
 
-URL="$1"
-PORT=5000
-APP_DIR="$HOME/wikiRead"
+# Detect the Wikipedia URL from any part of the shared string
+# (The Wikipedia app sometimes shares 'Title - https://en.wikipedia... ')
+INPUT="$*"
+URL=$(echo "$INPUT" | grep -o 'https://[^ ]*wikipedia.org/[^ ]*' | head -1)
 
-if [[ "$URL" != *"wikipedia.org"* ]]; then
-    echo "Not a Wikipedia URL: $URL"
+# Fallback if the above regex is too strict
+if [ -z "$URL" ]; then
+    URL=$(echo "$INPUT" | grep -o 'http[^ ]*wikipedia.org[^ ]*' | head -1)
+fi
+
+# Final fallback to $1 if regex fails but $1 looks okay
+if [ -z "$URL" ] && [[ "$1" == *"wikipedia.org"* ]]; then
+    URL="$1"
+fi
+
+if [ -z "$URL" ]; then
+    echo "No Wikipedia URL found in: $INPUT"
     echo "wikiRead only supports Wikipedia links."
     read -p "Press Enter to exit..."
     exit 0
