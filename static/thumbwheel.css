@@ -163,11 +163,6 @@
   transform: translateX(0);
 }
 
-.thumb-wheel.hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-50%) translateX(20px);
-}
 
 body.thumb-wheel-active {
   overflow: hidden !important;

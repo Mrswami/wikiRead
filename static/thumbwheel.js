@@ -1,21 +1,14 @@
-/**
- * 🎡 ThumbWheel.js - Precision Mobile Navigation Engine
- * A universal standard for high-speed mobile scrolling.
- */
-
 window.ThumbWheel = (function() {
   let isGrabbing = false;
   let startY = 0;
   let startScroll = 0;
   let lastY = 0;
   let velocity = 0;
-  let hideTimer = null;
   let rafId = null;
   let momentumRafId = null;
   
   let config = {
     sensitivity: 12,
-    hideDelay: 2500,
     momentum: 0.92, // Friction (lower = faster stop)
     tickSpacing: 25   // Pixels between visual 'rotation' ticks
   };
@@ -27,9 +20,8 @@ window.ThumbWheel = (function() {
     if (!wheel) {
       wheel = document.createElement('div');
       wheel.id = 'thumbWheel';
-      wheel.className = 'thumb-wheel hidden';
+      wheel.className = 'thumb-wheel'; // Remove .hidden
       
-      // Inject Ticks for the 'Rotation' effect
       const ticksContainer = document.createElement('div');
       ticksContainer.className = 'thumb-wheel-ticks';
       for (let i = 0; i < 8; i++) {
@@ -46,17 +38,10 @@ window.ThumbWheel = (function() {
     const label = document.getElementById('thumbLabel');
     const ticks = wheel.querySelector('.thumb-wheel-ticks');
 
-    window.addEventListener('scroll', () => {
-      if (isGrabbing) return;
-      show();
-      resetTimer();
-      updateVisuals();
-    }, { passive: true });
+    // (SCROLL LISTENER REMOVED - ALWAYS VISIBLE)
 
-    // Engage on Touch Start (Directly on the wheel)
     wheel.addEventListener('touchstart', (e) => {
       isGrabbing = true;
-      show(); // Force show instantly if even a pixel is hit
       startY = e.touches[0].clientY;
       lastY = startY;
       startScroll = window.scrollY;
@@ -66,19 +51,10 @@ window.ThumbWheel = (function() {
       wheel.classList.add('active');
       document.body.classList.add('thumb-wheel-active');
       
-      // Position Lock (X & Y)
       updatePosition(e.touches[0].clientX, e.touches[0].clientY);
       
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
-    
-    // Also allow 'waking up' the wheel if you touch near the right edge
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches[0].clientX > window.innerWidth - 60) {
-        show();
-        resetTimer();
-      }
-    }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
       if (!isGrabbing) return;
@@ -88,15 +64,9 @@ window.ThumbWheel = (function() {
       velocity = currentY - lastY;
       lastY = currentY;
       
-      // DYNAMIC SENSITIVITY ENGINE (v3.2)
-      // High sensitivity at center, precision at edges
       const screenCenterX = window.innerWidth / 2;
-      const maxDist = screenCenterX;
       const distFromCenter = Math.abs(currentX - screenCenterX);
-      const normalizedDist = Math.max(0, Math.min(1, distFromCenter / maxDist));
-      
-      // Speed Prism: Center boost (up to 20x) vs Edge precision (1x - 5x)
-      // Sensitivity is inverse to distance from center
+      const normalizedDist = Math.max(0, Math.min(1, distFromCenter / screenCenterX));
       const dynamicSensitivity = 1 + (1 - normalizedDist) * 20; 
       
       const deltaY = currentY - startY;
@@ -105,12 +75,8 @@ window.ThumbWheel = (function() {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'auto' });
-        
-        // Track thumb in 2D space
         updatePosition(currentX, currentY);
         updateVisuals();
-        
-        // Visual indicator: Aura size scale based on sensitivity boost
         const auraScale = 1 + (1 - normalizedDist) * 0.5;
         if (wheel) wheel.style.setProperty('--tw-aura-scale', auraScale);
       });
@@ -124,7 +90,6 @@ window.ThumbWheel = (function() {
       wheel.classList.remove('active');
       document.body.classList.remove('thumb-wheel-active');
       
-      // Elastic return to center right
       wheel.style.left = 'auto';
       wheel.style.right = '12px';
       wheel.style.top = '50%';
@@ -132,17 +97,15 @@ window.ThumbWheel = (function() {
       
       if (Math.abs(velocity) > 2) {
         applyMomentum();
-      } else {
-        resetTimer();
       }
     });
 
     function updatePosition(x, y) {
       if (wheel) {
-        wheel.style.right = 'auto'; // Disable default right alignment
+        wheel.style.right = 'auto';
         wheel.style.left = `${x}px`;
         wheel.style.top = `${y}px`;
-        wheel.style.transform = 'translate(-50%, -50%)'; // Center on point
+        wheel.style.transform = 'translate(-50%, -50%)';
       }
     }
 
@@ -159,32 +122,13 @@ window.ThumbWheel = (function() {
 
     function applyMomentum() {
       if (isGrabbing) return;
-      
-      window.scrollBy(0, velocity * config.sensitivity * 0.5);
+      window.scrollBy(0, velocity * 6);
       velocity *= config.momentum;
       updateVisuals();
-      
       if (Math.abs(velocity) > 0.1) {
         momentumRafId = requestAnimationFrame(applyMomentum);
-      } else {
-        resetTimer();
       }
     }
-  }
-
-  function show() {
-    const wheel = document.getElementById('thumbWheel');
-    if (wheel) wheel.classList.remove('hidden');
-  }
-
-  function resetTimer() {
-    if (hideTimer) clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      if (!isGrabbing) {
-        const wheel = document.getElementById('thumbWheel');
-        if (wheel) wheel.classList.add('hidden');
-      }
-    }, config.hideDelay);
   }
 
   return { init };
