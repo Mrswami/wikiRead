@@ -30,7 +30,13 @@
   z-index: 10000;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   touch-action: none;
-  transition: opacity 0.3s ease, border-color 0.3s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: 
+    opacity 0.3s ease, 
+    border-color 0.3s ease, 
+    width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    border-radius 0.4s ease,
+    transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   opacity: 0.6;
   user-select: none;
 }
@@ -48,24 +54,39 @@
   align-items: center;
   justify-content: space-around;
   padding: 10px 0;
+  transition: opacity 0.4s ease;
 }
 
 .tick {
   width: 14px;
   height: 1px;
   background: rgba(255, 255, 255, 0.15);
-  transition: background 0.3s ease;
+  transition: background 0.3s ease, opacity 0.4s ease;
 }
 
 .thumb-wheel:active .tick, .thumb-wheel.active .tick {
   background: rgba(255, 255, 255, 0.3);
+  opacity: 0.4; /* Fade ticks slightly in ball mode */
 }
 
+/* THE GLOW BALL TRANSFORMATION */
 .thumb-wheel:active, .thumb-wheel.active {
   opacity: 1;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
   border-color: var(--tw-accent);
-  transform: translateY(-50%) translateX(-12px) scale(1.1); /* Detach inward */
-  box-shadow: 0 0 25px var(--tw-accent-glow);
+  transform: translateY(-50%) translateX(-20px) scale(1.1); /* Detach more */
+  box-shadow: 
+    0 0 30px var(--tw-accent-glow),
+    0 0 60px rgba(54, 128, 176, 0.2);
+  animation: thumb-aura-pulse 2s infinite ease-in-out;
+}
+
+@keyframes thumb-aura-pulse {
+  0% { box-shadow: 0 0 30px var(--tw-accent-glow), 0 0 60px rgba(54, 128, 176, 0.1); }
+  50% { box-shadow: 0 0 45px var(--tw-accent-glow), 0 0 90px rgba(54, 128, 176, 0.3); }
+  100% { box-shadow: 0 0 30px var(--tw-accent-glow), 0 0 60px rgba(54, 128, 176, 0.1); }
 }
 
 .thumb-wheel::before {
