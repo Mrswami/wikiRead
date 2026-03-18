@@ -12,6 +12,9 @@
 
   <!-- STICKY TOP BAR -->
   <div class="top-bar" id="topBar">
+    <div class="reading-progress-container">
+      <div id="readingProgress" class="reading-progress-bar"></div>
+    </div>
     <button class="icon-btn" onclick="window.location.href='/'" title="Home">←</button>
     <div class="top-bar-info">
       <span class="top-bar-title">{{ article.title }}</span>
@@ -99,11 +102,14 @@
     <div class="concept-card" id="conceptCard">
       <div class="concept-card-header">
         <span class="concept-label">⚡ Quick Concept</span>
-        <button class="concept-play-btn" onclick="playSummary()" id="conceptPlayBtn">▶ Listen to Summary</button>
+        <div class="concept-actions">
+          <button class="ai-shortcut-btn" onclick="requestAISummary(this)" title="Summarize with AI">✨ AI</button>
+          <button class="concept-play-btn" onclick="playSummary()" id="conceptPlayBtn">▶ Listen</button>
+        </div>
       </div>
       <div class="concept-body" id="conceptBody">
         {% for para in article.summary %}
-        <p class="article-para summary-para" onclick="speakParagraph(this)">{{ para }}</p>
+        <p class="article-para summary-para">{{ para }}</p>
         {% endfor %}
       </div>
     </div>
@@ -145,6 +151,9 @@
     </div>
 
   </div>
+
+  <!-- FLOATING NAVIGATION PILL -->
+  <button id="backToTopBtn" class="back-to-top" onclick="backToTop()" style="display:none;">↑ Top</button>
 
   <!-- MINI PLAYER -->
   <div class="mini-player" id="miniPlayer" style="display:none;">

@@ -45,27 +45,61 @@
         </form>
       </section>
 
-      {% if history %}
-      <section class="history-section">
-        <h2 class="section-label">Recently Read</h2>
-        <ul class="history-list">
-          {% for item in history %}
-          <li>
-            <a href="/read?url={{ item.url }}" class="history-item">
-              <span class="history-icon">📄</span>
-              <span class="history-title">{{ item.title }}</span>
-              <span class="history-arrow">›</span>
-            </a>
-          </li>
-          {% endfor %}
+      <section class="history-section" id="historySection" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: calc(var(--space) * 1.5);">
+          <h2 class="section-label" style="margin-bottom:0;">Recently Read</h2>
+          <button onclick="clearLocalHistory()" style="background:transparent; border:none; color:var(--danger); font-size:0.7rem; cursor:pointer; text-transform:uppercase; font-weight:700; letter-spacing:0.05em;">Clear</button>
+        </div>
+        <ul class="history-list" id="localHistoryList">
+          <!-- Populated by JS -->
         </ul>
       </section>
-      {% else %}
-      <section class="empty-state">
+
+      <section class="empty-state" id="emptyState">
         <div class="empty-icon">🌐</div>
         <p>Share any Wikipedia article to Termux<br/>or paste a link above to get started.</p>
       </section>
-      {% endif %}
+
+    </main>
+  </div>
+
+  <script>
+    function loadLocalHistory() {
+      const history = JSON.parse(localStorage.getItem('wikiRead_history') || '[]');
+      const list = document.getElementById('localHistoryList');
+      const section = document.getElementById('historySection');
+      const empty = document.getElementById('emptyState');
+
+      if (history.length > 0) {
+        section.style.display = 'block';
+        empty.style.display = 'none';
+        list.innerHTML = '';
+        history.forEach(item => {
+          const li = document.createElement('li');
+          li.innerHTML = `
+            <a href="/read?url=${encodeURIComponent(item.url)}" class="history-item">
+              <span class="history-icon">📄</span>
+              <span class="history-title">${item.title}</span>
+              <span class="history-arrow">›</span>
+            </a>
+          `;
+          list.appendChild(li);
+        });
+      } else {
+        section.style.display = 'none';
+        empty.style.display = 'block';
+      }
+    }
+
+    function clearLocalHistory() {
+      if(confirm("Clear all recently read articles?")) {
+        localStorage.removeItem('wikiRead_history');
+        loadLocalHistory();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadLocalHistory);
+  </script>
     </main>
   </div>
 

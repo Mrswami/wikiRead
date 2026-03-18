@@ -15,6 +15,18 @@ let isSummaryPlaying = false;
 document.addEventListener('DOMContentLoaded', () => {
   allParagraphs = Array.from(document.querySelectorAll('.article-para'));
   
+  // Save to Local History
+  const title = document.querySelector('.article-title')?.textContent;
+  const url = new URL(window.location.href).searchParams.get('url');
+  if (title && url) {
+    let history = JSON.parse(localStorage.getItem('wikiRead_history') || '[]');
+    // Filter out duplicates
+    history = history.filter(item => item.url !== url);
+    history.unshift({ title, url });
+    // Cap at 15 items
+    localStorage.setItem('wikiRead_history', JSON.stringify(history.slice(0, 15)));
+  }
+
   // Attach tap and long-press listeners to every paragraph
   allParagraphs.forEach(p => setupParagraphListeners(p));
   
@@ -239,8 +251,7 @@ function stopSpeech() {
 // ============================================================
 
 function setupParagraphListeners(el) {
-  let pressTimer;
-  let isLongPress = false;
+  let lastTap = 0;
 
   // Handle Desktop Right Click
   el.addEventListener('contextmenu', (e) => {
@@ -248,25 +259,26 @@ function setupParagraphListeners(el) {
     promptExport(el.textContent);
   });
 
-  // Handle Mobile Long Press
-  el.addEventListener('touchstart', (e) => {
-    isLongPress = false; 
-    pressTimer = window.setTimeout(() => {
-      isLongPress = true;
+  // Handle Double Tap (Mobile/Desktop)
+  el.addEventListener('pointerdown', (e) => {
+    const curTime = new Date().getTime();
+    const tapLen = curTime - lastTap;
+    if (tapLen < 300 && tapLen > 0) {
+      e.preventDefault();
       promptExport(el.textContent);
-    }, 800); // 800ms long press
-  }, { passive: true });
-
-  el.addEventListener('touchend', () => { clearTimeout(pressTimer); });
-  el.addEventListener('touchmove', () => { clearTimeout(pressTimer); });
-
-  // Handle normal tap to play (skipping if long press happened)
-  el.addEventListener('click', (e) => {
-    if (isLongPress) {
-      isLongPress = false; // Reset flag
-      return;
     }
-    speakParagraph(el);
+    lastTap = curTime;
+  });
+
+  // Handle normal tap to play
+  el.addEventListener('click', (e) => {
+    // Small delay to ensure it wasn't a double-tap
+    setTimeout(() => {
+      const curTime = new Date().getTime();
+      if (curTime - lastTap >= 300) {
+        speakParagraph(el);
+      }
+    }, 300);
   });
 }
 
@@ -279,6 +291,34 @@ function promptExport(text) {
     alert("myJournal integration coming soon! (Snippet saved to clipboard conditionally)");
     // In the future: fetch('http://localhost:XXXX/api/journal', body: text)
   }
+}
+
+// ============================================================
+// NAVIGATION HELPERS
+// ============================================================
+
+window.onscroll = function() {
+  const scrollBtn = document.getElementById("backToTopBtn");
+  const progBar = document.getElementById("readingProgress");
+
+  // Calculate Reading Progress
+  const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+  const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  const scrolled = (winScroll / height) * 100;
+  if (progBar) progBar.style.width = scrolled + "%";
+
+  // Toggle Back to Top Button
+  if (scrollBtn) {
+    if (winScroll > 600) {
+      scrollBtn.style.display = "flex";
+    } else {
+      scrollBtn.style.display = "none";
+    }
+  }
+};
+
+function backToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function speakParagraph(el) {
