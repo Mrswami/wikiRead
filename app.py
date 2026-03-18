@@ -1,15 +1,13 @@
 from flask import Flask, render_template, request, jsonify
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai
+import requests
 from parser import parse_wikipedia
 
 load_dotenv()
 
 # Configure Google Gemini
 gemini_key = os.environ.get("GEMINI_API_KEY")
-if gemini_key:
-    genai.configure(api_key=gemini_key)
 
 app = Flask(__name__)
 
@@ -59,19 +57,32 @@ def summarize():
         "1. Exactly 3 general bullet points summarizing it.\n"
         "2. A heuristic or mnemonic to help memorize it (or a highly creative third option to aid memory).\n"
         "Output ONLY the bullet points and the mnemonic, keep it very concise and punchy.\n\n"
-        f"Article:\n{text[:15000]}" # Limiting text just in case of massive articles
+        f"Article:\n{text[:15000]}"
     )
 
+    # Lightweight Direct REST API Call
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }]
+    }
+
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        response = model.generate_content(prompt)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        result = response.json()
+        
+        # Extract text from response
+        output_text = result['candidates'][0]['content']['parts'][0]['text']
         
         # Split output into an array of paragraphs so it's easily consumed by the UI TTS loop
-        paragraphs = [p.strip() for p in response.text.split('\n\n') if p.strip()]
+        paragraphs = [p.strip() for p in output_text.split('\n\n') if p.strip()]
         
         return jsonify({"status": "ok", "summary": paragraphs})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": f"Gemini API Error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     # Run on all interfaces so the phone can reach it on the LAN
