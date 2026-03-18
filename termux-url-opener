@@ -18,8 +18,10 @@ fi
 termux-toast "📖 wikiRead: Fetching Article..."
 
 # 2. Kill old server instances on port 5000
-# Using fuser is more reliable than pkill
-fuser -k ${PORT}/tcp > /dev/null 2>&1
+# Termux often ignores fuser, pkill is safer
+pkill -f "python3 app.py" > /dev/null 2>&1
+# Give the OS a second to free the port
+sleep 1
 
 # 3. Start Flask server in background
 cd "$APP_DIR"
@@ -28,10 +30,10 @@ python3 app.py > "$HOME/wikiread_server.log" 2>&1 &
 SERVER_PID=$!
 
 # 4. Wait for server to wake up (max 5 seconds)
-# We check the port instead of a fixed sleep
+# We use curl to check if the server answers, as lsof is restricted on Android without root
 SUCCESS=0
 for i in {1..10}; do
-    if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
+    if curl -s http://localhost:$PORT/ > /dev/null ; then
         SUCCESS=1
         break
     fi
