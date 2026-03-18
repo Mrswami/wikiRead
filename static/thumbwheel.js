@@ -65,6 +65,9 @@ window.ThumbWheel = (function() {
       document.body.classList.add('thumb-wheel-active');
       show();
       
+      // Initial Position Lock
+      updatePosition(startY);
+      
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
 
@@ -72,7 +75,7 @@ window.ThumbWheel = (function() {
       if (!isGrabbing) return;
       
       const currentY = e.touches[0].clientY;
-      velocity = currentY - lastY; // Simple velocity tracking
+      velocity = currentY - lastY;
       lastY = currentY;
       
       const deltaY = currentY - startY;
@@ -81,6 +84,9 @@ window.ThumbWheel = (function() {
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'auto' });
+        
+        // Track thumb position 1:1
+        updatePosition(currentY);
         updateVisuals();
       });
       
@@ -93,7 +99,10 @@ window.ThumbWheel = (function() {
       wheel.classList.remove('active');
       document.body.classList.remove('thumb-wheel-active');
       
-      // Start Momentum Loop
+      // Smooth return to center
+      wheel.style.top = '50%';
+      wheel.style.transform = 'translateY(-50%)';
+      
       if (Math.abs(velocity) > 2) {
         applyMomentum();
       } else {
@@ -101,13 +110,19 @@ window.ThumbWheel = (function() {
       }
     });
 
+    function updatePosition(y) {
+      if (wheel) {
+        wheel.style.top = `${y}px`;
+        // We override the center transform to stay exactly under thumb
+        wheel.style.transform = 'translateY(-50%) translateX(-20px)'; 
+      }
+    }
+
     function updateVisuals() {
-      // Update Percentage
       const winHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
       const pct = Math.min(100, Math.max(0, (window.scrollY / winHeight) * 100));
       if (label) label.textContent = Math.round(pct) + "%";
       
-      // Move Ticks to simulate rotation
       if (ticks) {
         const offset = (window.scrollY / 10) % config.tickSpacing;
         ticks.style.transform = `translateY(${offset}px)`;
