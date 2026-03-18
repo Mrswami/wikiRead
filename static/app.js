@@ -14,6 +14,10 @@ let isSummaryPlaying = false;
 // Gather all paragraphs in document order on load
 document.addEventListener('DOMContentLoaded', () => {
   allParagraphs = Array.from(document.querySelectorAll('.article-para'));
+  
+  // Attach tap and long-press listeners to every paragraph
+  allParagraphs.forEach(p => setupParagraphListeners(p));
+  
   setupScrollSpy();
   setupMediaSession();
   
@@ -231,8 +235,51 @@ function stopSpeech() {
 }
 
 // ============================================================
-// TAP-TO-LISTEN
+// TAP-TO-LISTEN & LONG-PRESS (myJournal Integration)
 // ============================================================
+
+function setupParagraphListeners(el) {
+  let pressTimer;
+  let isLongPress = false;
+
+  // Handle Desktop Right Click
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    promptExport(el.textContent);
+  });
+
+  // Handle Mobile Long Press
+  el.addEventListener('touchstart', (e) => {
+    isLongPress = false; 
+    pressTimer = window.setTimeout(() => {
+      isLongPress = true;
+      promptExport(el.textContent);
+    }, 800); // 800ms long press
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => { clearTimeout(pressTimer); });
+  el.addEventListener('touchmove', () => { clearTimeout(pressTimer); });
+
+  // Handle normal tap to play (skipping if long press happened)
+  el.addEventListener('click', (e) => {
+    if (isLongPress) {
+      isLongPress = false; // Reset flag
+      return;
+    }
+    speakParagraph(el);
+  });
+}
+
+function promptExport(text) {
+  // Prevent TTS from firing immediately after the prompt closes
+  stopSpeech();
+  
+  const wantsExport = window.confirm("Export to myJournal?\n\nWould you like to save this snippet to your notes?");
+  if (wantsExport) {
+    alert("myJournal integration coming soon! (Snippet saved to clipboard conditionally)");
+    // In the future: fetch('http://localhost:XXXX/api/journal', body: text)
+  }
+}
 
 function speakParagraph(el) {
   if (!el) return;
@@ -392,7 +439,7 @@ function requestAISummary(btn) {
         pTag.className = 'article-para summary-para';
         pTag.style.borderLeftColor = 'var(--gold)'; // Special styling for AI output
         pTag.textContent = para;
-        pTag.onclick = () => speakParagraph(pTag);
+        setupParagraphListeners(pTag); // Enable tap to listen & long press 
         conceptBody.appendChild(pTag);
       });
       
