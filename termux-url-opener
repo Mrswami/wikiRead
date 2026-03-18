@@ -24,26 +24,27 @@ if [ -z "$URL" ]; then
     exit 0
 fi
 
-echo "📖 wikiRead: Starting server for $URL"
+echo "📖 wikiRead: Launching Reader..."
 
-# Kill any existing Flask instance on our port
+# Kill any existing Flask instance
 pkill -f "python3 $APP_DIR/app.py" 2>/dev/null
 
-# Start Flask server in background
+# Start Flask server in background and disown it so it survives terminal close
 cd "$APP_DIR"
-python3 app.py &
+python3 app.py > /dev/null 2>&1 &
 SERVER_PID=$!
 
-# Give the server a moment to start
-sleep 2
-
-# URL-encode the wikipedia URL for the query param
+# URL-encode the wikipedia URL
 ENCODED_URL=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$URL")
 
-# Open the reader in the default browser
+# Open the reader IMMEDIATELY. 
+# The browser might show a quick 'site can't be reached' for 0.5s 
+# while Flask boots, but it feels much faster.
 termux-open-url "http://localhost:$PORT/read?url=$ENCODED_URL"
 
-echo "✅ Server running (PID $SERVER_PID). Browser opened."
-echo "   Close this terminal when done."
-wait $SERVER_PID
+echo "✅ wikiRead is running in the background."
+echo "   You can close Termux now."
+
+# Exit immediately so Termux returns to the previous app/home
+exit 0
 
