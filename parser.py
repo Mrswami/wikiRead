@@ -11,7 +11,9 @@ def _url_to_title(url):
     """Extract the Wikipedia article title from its URL to use in the REST API."""
     match = re.search(r'wikipedia\.org/wiki/(.+)', url)
     if match:
-        return match.group(1).split('#')[0]  # Drop anchor fragments
+        title = match.group(1).split('#')[0]  # Drop anchor fragments
+        title = title.split('?')[0]           # Drop query parameters/tracking IDs
+        return title
     return None
 
 def parse_wikipedia(url):
@@ -101,13 +103,13 @@ def parse_wikipedia(url):
                             pass
 
         if content_items:
-            sections.append({"title": heading_text, "items": content_items})
+            sections.append({"title": heading_text, "content_items": content_items})
 
     # Concept Capture: first 2–3 text paragraphs from the intro section
     summary = []
     if sections:
         # Extract only text items for the summary
-        text_paras = [item["content"] for item in sections[0]["items"] if item["type"] == "text"]
+        text_paras = [item["content"] for item in sections[0]["content_items"] if item["type"] == "text"]
         summary = text_paras[:3]
 
     return {
