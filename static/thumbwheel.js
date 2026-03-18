@@ -65,8 +65,8 @@ window.ThumbWheel = (function() {
       document.body.classList.add('thumb-wheel-active');
       show();
       
-      // Initial Position Lock
-      updatePosition(startY);
+      // Position Lock (X & Y)
+      updatePosition(e.touches[0].clientX, e.touches[0].clientY);
       
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
@@ -74,6 +74,7 @@ window.ThumbWheel = (function() {
     window.addEventListener('touchmove', (e) => {
       if (!isGrabbing) return;
       
+      const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
       velocity = currentY - lastY;
       lastY = currentY;
@@ -85,8 +86,8 @@ window.ThumbWheel = (function() {
       rafId = requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'auto' });
         
-        // Track thumb position 1:1
-        updatePosition(currentY);
+        // Track thumb in 2D space but scroll only 1D (Vertical)
+        updatePosition(currentX, currentY);
         updateVisuals();
       });
       
@@ -99,7 +100,9 @@ window.ThumbWheel = (function() {
       wheel.classList.remove('active');
       document.body.classList.remove('thumb-wheel-active');
       
-      // Smooth return to center
+      // Elastic return to center right
+      wheel.style.left = 'auto';
+      wheel.style.right = '12px';
       wheel.style.top = '50%';
       wheel.style.transform = 'translateY(-50%)';
       
@@ -110,11 +113,12 @@ window.ThumbWheel = (function() {
       }
     });
 
-    function updatePosition(y) {
+    function updatePosition(x, y) {
       if (wheel) {
+        wheel.style.right = 'auto'; // Disable default right alignment
+        wheel.style.left = `${x}px`;
         wheel.style.top = `${y}px`;
-        // We override the center transform to stay exactly under thumb
-        wheel.style.transform = 'translateY(-50%) translateX(-20px)'; 
+        wheel.style.transform = 'translate(-50%, -50%)'; // Center on point
       }
     }
 
