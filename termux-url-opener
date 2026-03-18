@@ -1,19 +1,38 @@
 #!/bin/bash
 # termux-url-opener
-# This script is called by Termux when a URL is shared from another app.
+# Triggered when a URL is shared to Termux from another app.
 
 URL="$1"
+PORT=5000
+APP_DIR="$HOME/wikiRead"
 
-# Check if the URL is a Wikipedia link
-if [[ "$URL" == *"wikipedia.org"* ]]; then
-    echo "Wikipedia URL received: $URL"
-    echo "Starting Wikipedia TTS..."
-    
-    # Path to the python script
-    # Assuming wiki_tts.py is in the home directory
-    python3 ~/wiki_tts.py "$URL"
-else
-    echo "Received URL: $URL"
-    echo "This script is currently configured to only handle Wikipedia links."
+if [[ "$URL" != *"wikipedia.org"* ]]; then
+    echo "Not a Wikipedia URL: $URL"
+    echo "wikiRead only supports Wikipedia links."
     read -p "Press Enter to exit..."
+    exit 0
 fi
+
+echo "📖 wikiRead: Starting server for $URL"
+
+# Kill any existing Flask instance on our port
+pkill -f "python3 $APP_DIR/app.py" 2>/dev/null
+
+# Start Flask server in background
+cd "$APP_DIR"
+python3 app.py &
+SERVER_PID=$!
+
+# Give the server a moment to start
+sleep 2
+
+# URL-encode the wikipedia URL for the query param
+ENCODED_URL=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$URL")
+
+# Open the reader in the default browser
+termux-open-url "http://localhost:$PORT/read?url=$ENCODED_URL"
+
+echo "✅ Server running (PID $SERVER_PID). Browser opened."
+echo "   Close this terminal when done."
+wait $SERVER_PID
+

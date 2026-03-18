@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>wikiRead — Learn on the Go</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- HOME PAGE -->
+  <div class="home-page">
+    <header class="home-header">
+      <div class="logo">
+        <span class="logo-icon">📖</span>
+        <h1>wiki<span class="logo-accent">Read</span></h1>
+      </div>
+      <p class="tagline">Share any Wikipedia article. Listen &amp; learn on the go.</p>
+    </header>
+
+    <main class="home-main">
+      {% if error %}
+      <div class="error-card">
+        <span>⚠️</span> {{ error }}
+      </div>
+      {% endif %}
+
+      <section class="search-section">
+        <form action="/read" method="GET" class="url-form">
+          <div class="input-group">
+            <input
+              type="url"
+              name="url"
+              id="url-input"
+              placeholder="Paste a Wikipedia URL..."
+              required
+              autocomplete="off"
+            />
+            <button type="submit" class="btn-primary">
+              <span>Read</span> <span class="btn-arrow">→</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {% if history %}
+      <section class="history-section">
+        <h2 class="section-label">Recently Read</h2>
+        <ul class="history-list">
+          {% for item in history %}
+          <li>
+            <a href="/read?url={{ item.url }}" class="history-item">
+              <span class="history-icon">📄</span>
+              <span class="history-title">{{ item.title }}</span>
+              <span class="history-arrow">›</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% else %}
+      <section class="empty-state">
+        <div class="empty-icon">🌐</div>
+        <p>Share any Wikipedia article to Termux<br/>or paste a link above to get started.</p>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+
+</body>
+</html>

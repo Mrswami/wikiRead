@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ article.title }} — wikiRead</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="reader-body">
+
+  <!-- STICKY TOP BAR -->
+  <div class="top-bar" id="topBar">
+    <a href="/" class="back-btn" title="Home">←</a>
+    <div class="top-bar-info">
+      <span class="top-bar-title">{{ article.title }}</span>
+      <span class="top-bar-section" id="currentSectionLabel">Introduction</span>
+    </div>
+    <button class="global-play-btn" id="globalPlayBtn" onclick="toggleGlobalPlay()" title="Play / Pause">
+      ▶
+    </button>
+  </div>
+
+  <div class="reader-container">
+
+    <!-- ARTICLE HEADER -->
+    <div class="article-header">
+      {% if article.thumbnail %}
+      <img class="article-thumb" src="{{ article.thumbnail }}" alt="{{ article.title }} thumbnail" />
+      {% endif %}
+      <h1 class="article-title">{{ article.title }}</h1>
+      <a class="wiki-link" href="{{ article.url }}" target="_blank">View on Wikipedia ↗</a>
+    </div>
+
+    <!-- CONCEPT CAPTURE (TL;DR CARD) -->
+    {% if article.summary %}
+    <div class="concept-card" id="conceptCard">
+      <div class="concept-card-header">
+        <span class="concept-label">⚡ Quick Concept</span>
+        <button class="concept-play-btn" onclick="playSummary()" id="conceptPlayBtn">▶ Listen to Summary</button>
+      </div>
+      <div class="concept-body" id="conceptBody">
+        {% for para in article.summary %}
+        <p>{{ para }}</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- TABLE OF CONTENTS -->
+    <nav class="toc" id="toc">
+      <div class="toc-header">Contents</div>
+      <ol class="toc-list">
+        {% for section in article.sections %}
+        <li>
+          <a href="#section-{{ loop.index0 }}" class="toc-link" onclick="scrollToSection({{ loop.index0 }})">
+            {{ section.title }}
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
+    </nav>
+
+    <!-- ARTICLE SECTIONS -->
+    <div class="article-body">
+      {% for section in article.sections %}
+      <section class="article-section" id="section-{{ loop.index0 }}" data-section-index="{{ loop.index0 }}">
+        <div class="section-heading-row">
+          <h2 class="section-heading">{{ section.title }}</h2>
+          <button
+            class="section-play-btn"
+            onclick="playSection({{ loop.index0 }})"
+            title="Read this section"
+          >▶</button>
+        </div>
+        <div class="section-content">
+          {% for para in section.paragraphs %}
+          <p
+            class="article-para"
+            data-section="{{ loop.index0 }}"
+            data-para="{{ loop.index0 }}"
+            onclick="speakParagraph(this)"
+          >{{ para }}</p>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- MINI PLAYER -->
+  <div class="mini-player" id="miniPlayer" style="display:none;">
+    <div class="mini-player-info">
+      <span class="mini-player-icon">🔊</span>
+      <span class="mini-player-text" id="miniPlayerText">Reading...</span>
+    </div>
+    <button class="mini-stop-btn" onclick="stopSpeech()">■ Stop</button>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
