@@ -50,16 +50,28 @@ function populateVoices() {
   const currentVal = select.value;
   select.innerHTML = '';
   
-  voices.forEach((v, i) => {
+  // Isolate English voices to provide different accents, but include local first
+  const engVoices = voices.filter(v => v.lang.startsWith('en'));
+  const otherVoices = voices.filter(v => !v.lang.startsWith('en'));
+  
+  const sortedVoices = [...engVoices, ...otherVoices];
+  
+  sortedVoices.forEach((v, i) => {
     const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = `${v.name} (${v.lang})`;
+    // Map the index to the original voices array index to ensure we select the right voice on play
+    opt.value = voices.indexOf(v);
+    
+    // Create a readable label capturing the accent (e.g. "en-GB")
+    let label = `${v.name} (${v.lang})`;
+    if (v.localService) label += " [Offline]";
+    opt.textContent = label;
+    
     select.appendChild(opt);
   });
   
   // Auto-select English local voice if nothing selected
   if (!currentVal) {
-    const bestIdx = voices.findIndex(v => v.localService && v.lang.startsWith('en'));
+    const bestIdx = sortedVoices.findIndex(v => v.lang.startsWith('en') && v.localService);
     select.selectedIndex = bestIdx >= 0 ? bestIdx : 0;
     updateTTSConfig();
   } else {
