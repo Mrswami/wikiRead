@@ -2,49 +2,52 @@
 # termux-url-opener
 # Triggered when a URL is shared to Termux from another app.
 
-# Detect the Wikipedia URL from any part of the shared string
-# (The Wikipedia app sometimes shares 'Title - https://en.wikipedia... ')
+# 1. Extract URL (Wikipedia app uses "Title - URL" format)
 INPUT="$*"
-URL=$(echo "$INPUT" | grep -o 'https://[^ ]*wikipedia.org/[^ ]*' | head -1)
+# Improved regex to find any wikipedia link in the shared text
+URL=$(echo "$INPUT" | grep -oEi 'https?://[a-z0-9.-]+\.wikipedia\.org/wiki/[^ ]+' | head -1)
 
-# Fallback if the above regex is too strict
+# Status Check
 if [ -z "$URL" ]; then
-    URL=$(echo "$INPUT" | grep -o 'http[^ ]*wikipedia.org[^ ]*' | head -1)
-fi
-
-# Final fallback to $1 if regex fails but $1 looks okay
-if [ -z "$URL" ] && [[ "$1" == *"wikipedia.org"* ]]; then
-    URL="$1"
-fi
-
-if [ -z "$URL" ]; then
-    echo "No Wikipedia URL found in: $INPUT"
-    echo "wikiRead only supports Wikipedia links."
+    termux-toast -c red -b white "wikiRead: No Wikipedia link found"
+    echo "❌ Error: Could not find a Wikipedia link in: $INPUT"
     read -p "Press Enter to exit..."
-    exit 0
+    exit 1
 fi
 
-echo "📖 wikiRead: Launching Reader..."
+termux-toast "📖 wikiRead: Fetching Article..."
 
-# Kill any existing Flask instance
-pkill -f "python3 $APP_DIR/app.py" 2>/dev/null
+# 2. Kill old server instances on port 5000
+# Using fuser is more reliable than pkill
+fuser -k ${PORT}/tcp > /dev/null 2>&1
 
-# Start Flask server in background and disown it so it survives terminal close
+# 3. Start Flask server in background
 cd "$APP_DIR"
-python3 app.py > /dev/null 2>&1 &
+# Run and redirect output to a log file for debugging
+python3 app.py > "$HOME/wikiread_server.log" 2>&1 &
 SERVER_PID=$!
 
-# URL-encode the wikipedia URL
-ENCODED_URL=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$URL")
+# 4. Wait for server to wake up (max 5 seconds)
+# We check the port instead of a fixed sleep
+SUCCESS=0
+for i in {1..10}; do
+    if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
+        SUCCESS=1
+        break
+    fi
+    sleep 0.5
+done
 
-# Open the reader IMMEDIATELY. 
-# The browser might show a quick 'site can't be reached' for 0.5s 
-# while Flask boots, but it feels much faster.
-termux-open-url "http://localhost:$PORT/read?url=$ENCODED_URL"
+# 5. Open Browser
+if [ $SUCCESS -eq 1 ]; then
+    ENCODED_URL=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$URL")
+    termux-open-url "http://localhost:$PORT/read?url=$ENCODED_URL"
+    termux-toast "✅ wikiRead Ready!"
+else
+    termux-toast -c red "❌ wikiRead: Server failed to start"
+    echo "Error: Server failed to start. Check ~/wikiread_server.log"
+    read -p "Press Enter to close..."
+fi
 
-echo "✅ wikiRead is running in the background."
-echo "   You can close Termux now."
-
-# Exit immediately so Termux returns to the previous app/home
 exit 0
 
