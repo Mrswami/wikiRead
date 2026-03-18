@@ -90,8 +90,9 @@ window.ThumbWheel = (function() {
       wheel.classList.remove('active');
       document.body.classList.remove('thumb-wheel-active');
       
+      // Elastic return to 'Samsung Stealth' home (Right 2px, Center Y)
       wheel.style.left = 'auto';
-      wheel.style.right = '12px';
+      wheel.style.right = '2px';
       wheel.style.top = '50%';
       wheel.style.transform = 'translateY(-50%)';
       
