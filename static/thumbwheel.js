@@ -79,16 +79,31 @@ window.ThumbWheel = (function() {
       velocity = currentY - lastY;
       lastY = currentY;
       
+      // DYNAMIC SENSITIVITY ENGINE (v3.2)
+      // High sensitivity at center, precision at edges
+      const screenCenterX = window.innerWidth / 2;
+      const maxDist = screenCenterX;
+      const distFromCenter = Math.abs(currentX - screenCenterX);
+      const normalizedDist = Math.max(0, Math.min(1, distFromCenter / maxDist));
+      
+      // Speed Prism: Center boost (up to 20x) vs Edge precision (1x - 5x)
+      // Sensitivity is inverse to distance from center
+      const dynamicSensitivity = 1 + (1 - normalizedDist) * 20; 
+      
       const deltaY = currentY - startY;
-      const targetScroll = startScroll + (deltaY * config.sensitivity);
+      const targetScroll = startScroll + (deltaY * dynamicSensitivity);
       
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(() => {
         window.scrollTo({ top: targetScroll, behavior: 'auto' });
         
-        // Track thumb in 2D space but scroll only 1D (Vertical)
+        // Track thumb in 2D space
         updatePosition(currentX, currentY);
         updateVisuals();
+        
+        // Visual indicator: Aura size scale based on sensitivity boost
+        const auraScale = 1 + (1 - normalizedDist) * 0.5;
+        if (wheel) wheel.style.setProperty('--tw-aura-scale', auraScale);
       });
       
       if (e.cancelable) e.preventDefault();
