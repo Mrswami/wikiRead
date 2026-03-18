@@ -72,21 +72,43 @@ def parse_wikipedia(url):
         if heading_text in SKIP_SECTIONS:
             break
 
-        # Extract paragraphs
-        paragraphs = []
-        for p in sec.find_all('p'):
-            text = p.get_text().strip()
-            # Filter empty, footnote-only, and very short paragraphs
-            if text and len(text) > 40 and not text.startswith('^'):
-                paragraphs.append(text)
+        # Extract paragraphs and images
+        content_items = []
+        for elem in sec.find_all(['p', 'figure']):
+            if elem.name == 'p':
+                text = elem.get_text().strip()
+                # Filter empty, footnote-only, and very short paragraphs
+                if text and len(text) > 40 and not text.startswith('^'):
+                    content_items.append({"type": "text", "content": text})
+            elif elem.name == 'figure':
+                img = elem.find('img')
+                if img:
+                    src = img.get('src', '')
+                    if src:
+                        # Try to filter out tiny icons safely
+                        width = img.get('width', '1000')
+                        height = img.get('height', '1000')
+                        try:
+                            # Strip non-numeric characters like "px" if they exist
+                            w = int(''.join(c for c in str(width) if c.isdigit()) or 0)
+                            h = int(''.join(c for c in str(height) if c.isdigit()) or 0)
+                            if w > 50 and h > 50:
+                                cap_tag = elem.find('figcaption')
+                                caption = cap_tag.get_text().strip() if cap_tag else ""
+                                full_src = 'https:' + src if src.startswith('//') else src
+                                content_items.append({"type": "image", "src": full_src, "caption": caption})
+                        except ValueError:
+                            pass
 
-        if paragraphs:
-            sections.append({"title": heading_text, "paragraphs": paragraphs})
+        if content_items:
+            sections.append({"title": heading_text, "items": content_items})
 
-    # Concept Capture: first 2–3 paragraphs from the intro section
+    # Concept Capture: first 2–3 text paragraphs from the intro section
     summary = []
     if sections:
-        summary = sections[0]["paragraphs"][:3]
+        # Extract only text items for the summary
+        text_paras = [item["content"] for item in sections[0]["items"] if item["type"] == "text"]
+        summary = text_paras[:3]
 
     return {
         "title": title,

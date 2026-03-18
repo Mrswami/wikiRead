@@ -110,13 +110,22 @@
           >▶</button>
         </div>
         <div class="section-content">
-          {% for para in section.paragraphs %}
-          <p
-            class="article-para"
-            data-section="{{ loop.index0 }}"
-            data-para="{{ loop.index0 }}"
-            onclick="speakParagraph(this)"
-          >{{ para }}</p>
+          {% for item in section.items %}
+            {% if item.type == 'text' %}
+            <p
+              class="article-para"
+              data-section="{{ loop.index0 }}"
+              data-para="{{ loop.index0 }}"
+              onclick="speakParagraph(this)"
+            >{{ item.content }}</p>
+            {% elif item.type == 'image' %}
+            <figure class="article-figure">
+              <img class="article-inline-img" src="{{ item.src }}" alt="{{ item.caption }}" loading="lazy" />
+              {% if item.caption %}
+              <figcaption class="article-caption">{{ item.caption }}</figcaption>
+              {% endif %}
+            </figure>
+            {% endif %}
           {% endfor %}
         </div>
       </section>

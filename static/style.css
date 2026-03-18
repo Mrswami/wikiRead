@@ -455,6 +455,32 @@ a:hover { text-decoration: underline; }
   transition: all 0.1s ease;
 }
 
+/* Inline Images */
+.article-figure {
+  margin: calc(var(--space) * 3) 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.article-inline-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+}
+
+.article-caption {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: calc(var(--space) * 1.5);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
 /* Mini Player */
 .mini-player {
   position: fixed;
