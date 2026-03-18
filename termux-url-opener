@@ -1,0 +1,19 @@
+#!/bin/bash
+# termux-url-opener
+# This script is called by Termux when a URL is shared from another app.
+
+URL="$1"
+
+# Check if the URL is a Wikipedia link
+if [[ "$URL" == *"wikipedia.org"* ]]; then
+    echo "Wikipedia URL received: $URL"
+    echo "Starting Wikipedia TTS..."
+    
+    # Path to the python script
+    # Assuming wiki_tts.py is in the home directory
+    python3 ~/wiki_tts.py "$URL"
+else
+    echo "Received URL: $URL"
+    echo "This script is currently configured to only handle Wikipedia links."
+    read -p "Press Enter to exit..."
+fi
