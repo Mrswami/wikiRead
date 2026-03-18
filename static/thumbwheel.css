@@ -9,6 +9,15 @@
   --tw-text: #ffffff;
 }
 
+/* HIDE DEFAULT SCROLLBARS GLOBALLY */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* WebKit (Chrome/Safari/Cordova/Termux) */
+}
+
 .thumb-wheel {
   position: fixed;
   right: 12px;

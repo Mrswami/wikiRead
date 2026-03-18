@@ -53,8 +53,10 @@ window.ThumbWheel = (function() {
       updateVisuals();
     }, { passive: true });
 
+    // Engage on Touch Start (Directly on the wheel)
     wheel.addEventListener('touchstart', (e) => {
       isGrabbing = true;
+      show(); // Force show instantly if even a pixel is hit
       startY = e.touches[0].clientY;
       lastY = startY;
       startScroll = window.scrollY;
@@ -63,13 +65,20 @@ window.ThumbWheel = (function() {
       if (momentumRafId) cancelAnimationFrame(momentumRafId);
       wheel.classList.add('active');
       document.body.classList.add('thumb-wheel-active');
-      show();
       
       // Position Lock (X & Y)
       updatePosition(e.touches[0].clientX, e.touches[0].clientY);
       
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
+    
+    // Also allow 'waking up' the wheel if you touch near the right edge
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches[0].clientX > window.innerWidth - 60) {
+        show();
+        resetTimer();
+      }
+    }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
       if (!isGrabbing) return;
