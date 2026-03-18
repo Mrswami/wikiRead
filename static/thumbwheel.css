@@ -20,33 +20,37 @@
 
 .thumb-wheel {
   position: fixed;
-  right: 12px;
+  right: 2px; /* Tight to edge like Samsung Native */
   top: 50%;
   transform: translateY(-50%);
-  width: 44px;
-  height: 80px;
-  background: var(--tw-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--tw-border);
-  border-radius: 22px;
+  width: 6px; /* Ultra-thin Samsung style pill */
+  height: 60px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden; /* For ticks */
+  overflow: hidden;
   cursor: grab;
   z-index: 10000;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   touch-action: none;
+  /* Transitions: Native pill -> Custom Glow Ball */
   transition: 
+    background 0.3s ease,
     opacity 0.3s ease, 
     border-color 0.3s ease, 
     width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     border-radius 0.4s ease,
+    right 0.4s ease,
+    top 0s, 
     transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  opacity: 0.6;
+  opacity: 0.7;
   user-select: none;
 }
 
@@ -78,24 +82,23 @@
   opacity: 0.4; /* Fade ticks slightly in ball mode */
 }
 
-/* THE GLOW BALL TRANSFORMATION */
+/* THE GLOW BALL TRANSFORMATION (Engaged) */
 .thumb-wheel:active, .thumb-wheel.active {
   opacity: 1;
   width: 54px;
   height: 54px;
   border-radius: 50%;
+  background: var(--tw-glass);
+  backdrop-filter: blur(12px);
   border-color: var(--tw-accent);
-  /* Instant tracking for 360-degree position (no transition delay) */
   transition: 
     opacity 0.3s ease, 
-    border-color 0.3s ease, 
     width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     border-radius 0.4s ease,
     left 0s,
     top 0s, 
     transform 0s;
-  /* Visual Scale ties into Horizontal Dynamic Sensitivity */
   transform: translate(-50%, -50%) scale(var(--tw-aura-scale, 1));
   box-shadow: 
     0 0 calc(30px * var(--tw-aura-scale, 1)) var(--tw-accent-glow),
