@@ -50,6 +50,11 @@ chmod +x ~/bin/termux-url-opener
 ```
 
 ## 🔐 Security & Privacy
-Since this entire stack (Flask server + TTS Engine) runs **strictly locally via `localhost`** on your device, absolutely no tracking, cross-site leakages, or remote audio generation are occurring. Your reading habits and queries do not leave your own hardware. 
+Since this entire stack (Flask server + TTS Engine) runs **strictly locally via `localhost`** on your device, absolutely no tracking, cross-site leakages, or remote audio generation are occurring. Your reading habits and queries do not leave your own hardware.
+
+### 💡 Known Nuances: The Wikipedia App Account
+If you are physically **logged into a Wikipedia account** on the native Android Wikipedia app, the links it shares can sometimes behave slightly differently or append session/tracking parameters to the URL (e.g. `?wprov=sfti1`). 
+- **The wikiRead parser strictly strips these query tags and anchor fragments away.** It completely sanitizes the URL to just the raw article name before sending the request to the Wikipedia REST API.
+- This ensures that your local requests remain completely anonymous and server errors (like `500 Internal Server Error`) are prevented from bad formatting. 
 
 Enjoy learning.
